@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport"
+	      content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>분배금 계산기</title>
+</head>
+<body>
+	<div style="display:grid;grid-template-rows:1fr;gap:10px">
+		<label>수수료: <select class="input commission"><option value="5">5%</option><option value="3">3%</option></select></label>
+		<span>* 1조(10^12)까지 입력 가능합니다.</span>
+		<label>수익금: <input class="input amount" type="number" max="1000000000000"></label>
+		<label>인원수: <input class="input count" type="number" min="2" value="2"></label>
+		<label>표시 방식: <select class="input style"><option value="3comma">3자리마다 콤마</option><option value="4comma">4자리마다 콤마</option><option value="period">단위 표시</option></select></label>
+		<span>* 파티원 분배 금액은 100의 자리에서 내리고, 파티장이 나머지를 갖습니다.</span>
+		<label>파티장: <input class="leader" type="text" readonly></label>
+		<label>파티원: <input class="member" type="text" readonly></label>
+		<span>* 파티원 금액에 수수료를 적용한 값 대비 파티장이 얼마나 더 가져가는가를 나타냅니다.</span>
+		<label>오차액: <input class="difference_amount" type="text" readonly></label>
+		<label>오차율: <input class="difference" type="text" readonly></label>
+	</div>
+	<script>
+		(() => {
+			const element = Object.freeze({
+				input: document.querySelectorAll(".input"),
+				amountElement: document.querySelector(".amount"),
+				get amount() {
+					return +this.amountElement.value;
+				},
+				countElement: document.querySelector(".count"),
+				get count() {
+					return +this.countElement.value;
+				},
+				leader: document.querySelector(".leader"),
+				member: document.querySelector(".member"),
+				commissionElement: document.querySelector(".commission"),
+				get commission() {
+					return +this.commissionElement.value;
+				},
+				difference: document.querySelector(".difference"),
+				styleElement: document.querySelector(".style"),
+				get style() {
+					return this.styleElement.value;
+				},
+				differenceAmount: document.querySelector(".difference_amount")
+			});
+			
+			for(const input of element.input) {
+				input.addEventListener("input", event => {
+					let [amount, count] = [element.amount, element.count];
+					if([amount, count].some(Number.isNaN)) {
+						return false;
+					}
+					const min = +event.currentTarget.getAttribute("min");
+					if(min && amount < min) {
+						event.currentTarget.value = min;
+						count = min;
+					}
+					const max = +event.currentTarget.getAttribute("max");
+					if(max && amount > max) {
+						event.currentTarget.value = max;
+						amount = max;
+					}
+					const commissionValue = 100 / (100 - element.commission);
+					const divideValue = (count - 1) * commissionValue + 1;
+					const memberAmount = Math.floor(amount / divideValue * commissionValue / 100) * 100;
+					const leaderAmount = amount - memberAmount * (count - 1);
+					const style = element.style;
+					element.leader.value = numberStylize(leaderAmount, style);
+					element.member.value = numberStylize(memberAmount, style);
+					const differenceAmount = leaderAmount - memberAmount * (100 - element.commission) / 100;
+					element.differenceAmount.value = numberStylize(differenceAmount, style);
+					const difference = Math.round(differenceAmount / leaderAmount * 100000) / 100000;
+					element.difference.value = difference ? `${difference}%` : "0.00001% 미만";
+				});
+			}
+			
+			function numberStylize(number, style) {
+				if(number === 0) {
+					return "0";
+				}
+				if(!number) {
+					return "?";
+				}
+				switch(style) {
+					case "3comma":
+						return `${number}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+					case "4comma":
+						return `${number}`.replace(/\B(?=(\d{4})+(?!\d))/g, ',');
+					case "period":
+						const unit = ['메소', '만 ', '억 '];
+						let [result, pointer, cutUnit] = ['', 0, 10000];
+						
+						while(number >= cutUnit && pointer < unit.length) {
+							result = `${number % cutUnit}${unit[pointer]}${result}`;
+							number = Math.floor(number / cutUnit);
+							pointer++;
+						}
+						return `${number}${unit[pointer]}${result}`;
+				}
+			}
+		})();
+	</script>
+</body>
+</html>
